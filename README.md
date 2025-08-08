@@ -1,4 +1,4 @@
-# git-master-sync
+# Git Master Sync
 
 `git-master-sync` is a Bash script that automates the maintenance of your Git branches.
 
@@ -17,3 +17,16 @@
 2. Make it executable:
    ```bash
    chmod +x ~/.local/bin/git-master-sync
+
+## Usage
+
+# Run with real updates and branch deletions
+git-master-sync
+
+# Preview actions without making changes
+git-master-sync --dry-run
+
+## Requirements
+
+- Git installed and accessible from your shell.
+- Bash environment (Linux, macOS, or Windows with Git Bash).
