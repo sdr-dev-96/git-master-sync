@@ -1,0 +1,82 @@
+#!/bin/bash
+
+# Script to update all local branches with master
+# Deletes local branches that are merged or deleted remotely
+# Usage: update-all-branches [--dry-run]
+
+set -e
+
+SOURCE_BRANCH="master"
+DRY_RUN=false
+
+# Check if --dry-run is passed
+if [[ "$1" == "--dry-run" ]]; then
+  DRY_RUN=true
+  echo "🧪 Dry-run mode enabled: no push or deletion will be performed."
+fi
+
+echo "📡 Fetching remote..."
+git fetch --all --prune
+
+echo "🌀 Checking out $SOURCE_BRANCH"
+git checkout "$SOURCE_BRANCH"
+git pull origin "$SOURCE_BRANCH"
+
+# List all local branches except master
+branches=$(git for-each-ref --format='%(refname:short)' refs/heads/ | grep -v "^$SOURCE_BRANCH$")
+
+for branch in $branches; do
+  echo "🔁 Processing branch $branch..."
+
+  # Check if the remote branch exists
+  if ! git show-ref --quiet refs/remotes/origin/"$branch"; then
+    echo "🗑️ Remote branch origin/$branch no longer exists."
+
+    if $DRY_RUN; then
+      echo "🚫 Deletion SKIPPED (dry-run)"
+    else
+      echo "❌ Deleting local branch $branch"
+      git branch -D "$branch"
+    fi
+    continue
+  fi
+
+  # Check if the branch has already been merged into master
+  if git branch --merged "$SOURCE_BRANCH" | grep -qE "^\s+$branch$"; then
+    echo "✅ Branch $branch has already been merged into $SOURCE_BRANCH."
+
+    if $DRY_RUN; then
+      echo "🚫 Deletion SKIPPED (dry-run)"
+    else
+      echo "🗑️ Deleting local branch $branch"
+      git branch -d "$branch"
+    fi
+    continue
+  fi
+
+  # Otherwise, update the branch
+  echo "🔄 Updating $branch"
+  git checkout "$branch"
+  git fetch ; git pull
+
+  echo "🔄 Merging $SOURCE_BRANCH into $branch"
+  git merge "$SOURCE_BRANCH" --no-edit || {
+    echo "⚠️ Conflict in $branch. Resolve it manually."
+    exit 1
+  }
+
+  if $DRY_RUN; then
+    echo "🚫 Push SKIPPED (dry-run)"
+  else
+    echo "📤 Pushing $branch → origin"
+    git push origin "$branch"
+  fi
+
+  echo "✅ Update complete for $branch."
+done
+
+echo ""
+echo "🏁 Script finished."
+if $DRY_RUN; then
+  echo "🧪 (dry-run) No push or deletion was performed."
+fi
