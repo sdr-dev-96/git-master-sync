@@ -75,7 +75,9 @@ for branch in $branches; do
   echo "✅ Update complete for $branch."
 done
 
-echo ""
+echo "We go back to $SOURCE_BRANCH !"
+git checkout "$SOURCE_BRANCH"
+
 echo "🏁 Script finished."
 if $DRY_RUN; then
   echo "🧪 (dry-run) No push or deletion was performed."
