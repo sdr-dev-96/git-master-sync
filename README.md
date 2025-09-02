@@ -2,7 +2,7 @@
 
 `git-master-sync` is a Bash script that automates the maintenance of your Git branches.
 
-## Features
+## ✨ Features
 
 - Fetches and updates the `master` branch from the remote repository.
 - Updates all active local branches by merging the latest changes from `master`.
@@ -11,22 +11,39 @@
   - have already been merged into `master`.
 - Includes a `--dry-run` mode to preview actions without making any changes.
 
-## Installation
+## 📥 Installation
 
-1. Save the script as `git-master-sync` in a directory included in your `$PATH` (e.g., `~/.local/bin/`).
-2. Make it executable:
+1. Clone this repository into a folder of your choice (example: `~/tools/`):
    ```bash
-   chmod +x ~/.local/bin/git-master-sync
+   git clone https://github.com/your-username/git-master-sync.git ~/tools/git-master-sync
+   ```
 
-## Usage
+2. Add the script directory to your environment variables so it can be used everywhere:
+   ```bash
+   echo 'export PATH="$HOME/tools/git-master-sync:$PATH"' >> ~/.bashrc
+   source ~/.bashrc
+   ```
 
-# Run with real updates and branch deletions
+3. Make the script executable:
+   ```bash
+   chmod +x ~/tools/git-master-sync/git-master-sync
+   ```
+
+Now you can run `git-master-sync` from any directory.
+
+## ▶️ Usage
+
+Run with real updates and branch deletions:
+```bash
 git-master-sync
+```
 
-# Preview actions without making changes
+Preview actions without making changes:
+```bash
 git-master-sync --dry-run
+```
 
-## Requirements
+## ⚙️ Requirements
 
 - Git installed and accessible from your shell.
 - Bash environment (Linux, macOS, or Windows with Git Bash).
