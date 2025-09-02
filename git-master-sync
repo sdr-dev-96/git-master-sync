@@ -30,11 +30,12 @@ branches=$(git for-each-ref --format='%(refname:short)' refs/heads/ | grep -v "^
 
 for branch in $branches; do
   echo "🔁 Processing branch $branch..."
+  reason=""
 
   # Check if branch should be deleted (either remote branch is gone OR already merged)
   if ! git show-ref --quiet refs/remotes/origin/"$branch"; then
     reason="Remote branch origin/$branch no longer exists."
-  elif git branch --merged "$SOURCE_BRANCH" | grep -qE "^\s+$branch$"; then
+  elif git branch --merged "$SOURCE_BRANCH" | grep -qw "$branch"; then
     reason="Branch $branch has already been merged into $SOURCE_BRANCH."
   fi
 
@@ -54,13 +55,18 @@ for branch in $branches; do
   # Otherwise, update the branch
   echo "🔄 Updating $branch"
   git checkout "$branch"
-  git fetch ; git pull
+  git pull --ff-only || true  # fast-forward si possible, sinon on merge
 
   echo "🔄 Merging $SOURCE_BRANCH into $branch"
-  git merge "$SOURCE_BRANCH" --no-edit || {
+  set +e
+  git merge "$SOURCE_BRANCH" --no-edit
+  merge_status=$?
+  set -e
+
+  if [ $merge_status -ne 0 ]; then
     echo "⚠️ Conflict in $branch. Resolve it manually."
     exit 1
-  }
+  fi
 
   if $DRY_RUN; then
     echo "🚫 Push SKIPPED (dry-run)"
