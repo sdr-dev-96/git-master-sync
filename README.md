@@ -15,7 +15,7 @@
 
 1. Clone this repository into a folder of your choice (example: `~/tools/`):
    ```bash
-   git clone https://github.com/your-username/git-master-sync.git ~/tools/git-master-sync
+   git clone https://github.com/sdr-dev-96/git-master-sync.git ~/tools/git-master-sync
    ```
 
 2. Add the script directory to your environment variables so it can be used everywhere:
