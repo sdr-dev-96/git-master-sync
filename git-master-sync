@@ -9,6 +9,9 @@ set -e
 SOURCE_BRANCH="master"
 DRY_RUN=false
 
+current_branch=$(git branch --show-current)
+echo "Current branch : $current_branch"
+
 # Check if --dry-run is passed
 if [[ "$1" == "--dry-run" ]]; then
   DRY_RUN=true
@@ -69,8 +72,8 @@ for branch in $branches; do
   echo "✅ Update complete for $branch."
 done
 
-echo "We go back to $SOURCE_BRANCH !"
-git checkout "$SOURCE_BRANCH"
+echo "We go back to $current_branch !"
+git checkout "$current_branch"
 
 echo "🏁 Script finished."
 if $DRY_RUN; then
