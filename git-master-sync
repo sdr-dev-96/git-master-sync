@@ -2,7 +2,7 @@
 
 # Script to update all local branches with master
 # Deletes local branches that are merged or deleted remotely
-# Usage: update-all-branches [--dry-run]
+# Usage: update-all-branches [--dry-run] [-out <branch|origin/branch>]
 
 set -e
 
@@ -12,14 +12,31 @@ DRY_RUN=false
 current_branch=$(git branch --show-current)
 echo "Current branch : $current_branch"
 
-# We will return to the current branch at the end of the script
+# Default output branch
 OUT_BRANCH="$current_branch"
 
-# Check if --dry-run is passed
-if [[ "$1" == "--dry-run" ]]; then
-  DRY_RUN=true
-  echo "🧪  Dry-run mode enabled: no push or deletion will be performed."
-fi
+# Parse args ONCE
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      DRY_RUN=true
+      echo "🧪  Dry-run mode enabled: no push or deletion will be performed."
+      shift
+      ;;
+    -out|--out)
+      if [[ -z "${2:-}" ]]; then
+        echo "❌  Error: -out requires a branch name"
+        exit 1
+      fi
+      OUT_BRANCH="$2"
+      shift 2
+      ;;
+    *)
+      echo "❌  Unknown parameter: $1"
+      exit 1
+      ;;
+  esac
+done
 
 echo "📡  Fetching remote..."
 git fetch --all --prune
@@ -28,8 +45,8 @@ echo "🌀  Checking out $SOURCE_BRANCH"
 git checkout "$SOURCE_BRANCH"
 git pull origin "$SOURCE_BRANCH"
 
-# List all local branches except master
-branches=$(git for-each-ref --format='%(refname:short)' refs/heads/ | grep -v "^$SOURCE_BRANCH$")
+# List all local branches except SOURCE_BRANCH
+branches=$(git for-each-ref --format='%(refname:short)' refs/heads/ | grep -v "^$SOURCE_BRANCH$" || true)
 
 for branch in $branches; do
   echo "🔁  Processing branch $branch..."
@@ -42,10 +59,8 @@ for branch in $branches; do
     reason="Branch $branch has already been merged into $SOURCE_BRANCH."
   fi
 
-  # If a reason was found, force delete the branch
   if [ -n "$reason" ]; then
     echo "✅ $reason"
-
     if $DRY_RUN; then
       echo "🚫  Deletion SKIPPED (dry-run)"
     else
@@ -55,10 +70,9 @@ for branch in $branches; do
     continue
   fi
 
-  # Otherwise, update the branch
   echo "🔄  Updating $branch"
   git checkout "$branch"
-  git pull --ff-only || true  # fast-forward si possible, sinon on merge
+  git pull --ff-only || true
 
   echo "🔄  Merging $SOURCE_BRANCH into $branch"
   set +e
@@ -71,38 +85,47 @@ for branch in $branches; do
     exit 1
   fi
 
-  while [[ $# -gt 0 ]]; do
-    case "$1" in
-      --dry-run)
-        DRY_RUN=true
-        echo "🧪  Dry-run mode enabled: no push or deletion will be performed."
-        shift
-        ;;
-      -out|--out)
-        if [[ -z "$2" ]]; then
-          echo "❌  Error: -out requires a branch name"
-          exit 1
-        fi
-        OUT_BRANCH="$2"
-        shift 2
-        ;;
-      *)
-        echo "❌  Unknown parameter: $1"
-        exit 1
-        ;;
-    esac
-  done
+  if $DRY_RUN; then
+    echo "🚫  Push SKIPPED (dry-run)"
+  else
+    echo "📤  Pushing $branch → origin"
+    git push origin "$branch"
+  fi
 
   echo "✅  Update complete for $branch."
 done
 
-if ! git show-ref --quiet refs/heads/"$OUT_BRANCH"; then
-  echo "❌  Output branch '$OUT_BRANCH' does not exist locally. Using current branch '$SOURCE_BRANCH' instead."
-  OUT_BRANCH="$SOURCE_BRANCH"
+# --- Resolve OUT_BRANCH (supports "origin/foo") and auto-create local if needed ---
+
+# If OUT_BRANCH is origin/foo, local branch should be foo
+if [[ "$OUT_BRANCH" == origin/* ]]; then
+  out_remote="$OUT_BRANCH"          # origin/foo
+  out_local="${OUT_BRANCH#origin/}" # foo
+else
+  out_local="$OUT_BRANCH"           # foo
+  out_remote="origin/$OUT_BRANCH"   # origin/foo
 fi
 
-echo "🚪  Switching to output branch: $OUT_BRANCH"
-git checkout "$OUT_BRANCH"
+# If local out branch exists, good. Otherwise try to create from remote.
+if git show-ref --quiet "refs/heads/$out_local"; then
+  final_branch="$out_local"
+elif git show-ref --quiet "refs/remotes/$out_remote"; then
+  echo "🌱  Creating local branch '$out_local' from '$out_remote'"
+  git checkout -b "$out_local" "$out_remote"
+  final_branch="$out_local"
+else
+  echo "❌  Output branch '$OUT_BRANCH' not found (local or remote). Using '$SOURCE_BRANCH' instead."
+  final_branch="$SOURCE_BRANCH"
+fi
+
+# If we already checked out when creating, avoid double checkout
+current_now=$(git branch --show-current)
+if [[ "$current_now" != "$final_branch" ]]; then
+  echo "🚪  Switching to output branch: $final_branch"
+  git checkout "$final_branch"
+else
+  echo "🚪  Staying on output branch: $final_branch"
+fi
 
 echo "🏁  Script finished."
 if $DRY_RUN; then
