@@ -12,6 +12,9 @@ DRY_RUN=false
 current_branch=$(git branch --show-current)
 echo "Current branch : $current_branch"
 
+# We will return to the current branch at the end of the script
+OUT_BRANCH="$current_branch"
+
 # Check if --dry-run is passed
 if [[ "$1" == "--dry-run" ]]; then
   DRY_RUN=true
@@ -68,18 +71,38 @@ for branch in $branches; do
     exit 1
   fi
 
-  if $DRY_RUN; then
-    echo "🚫  Push SKIPPED (dry-run)"
-  else
-    echo "📤  Pushing $branch → origin"
-    git push origin "$branch"
-  fi
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run)
+        DRY_RUN=true
+        echo "🧪  Dry-run mode enabled: no push or deletion will be performed."
+        shift
+        ;;
+      -out|--out)
+        if [[ -z "$2" ]]; then
+          echo "❌  Error: -out requires a branch name"
+          exit 1
+        fi
+        OUT_BRANCH="$2"
+        shift 2
+        ;;
+      *)
+        echo "❌  Unknown parameter: $1"
+        exit 1
+        ;;
+    esac
+  done
 
   echo "✅  Update complete for $branch."
 done
 
-echo "We go back to $current_branch !"
-git checkout "$current_branch"
+if ! git show-ref --quiet refs/heads/"$OUT_BRANCH"; then
+  echo "❌  Output branch '$OUT_BRANCH' does not exist locally. Using current branch '$SOURCE_BRANCH' instead."
+  OUT_BRANCH="$SOURCE_BRANCH"
+fi
+
+echo "🚪  Switching to output branch: $OUT_BRANCH"
+git checkout "$OUT_BRANCH"
 
 echo "🏁  Script finished."
 if $DRY_RUN; then
